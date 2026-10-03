@@ -1,5 +1,6 @@
 backend/uploads/
 backend/.venv/
+backend/voice_life.db
 frontend/node_modules/
 frontend/.next/
 .env
