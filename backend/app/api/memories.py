@@ -1,5 +1,7 @@
+import re
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 from app.models.memory import Memory
 from app.repositories.memory_repository import (
     save_memory,
@@ -7,8 +9,13 @@ from app.repositories.memory_repository import (
     get_memory_by_id,
     search_memories,
 )
+from app.services.memory_qa import get_memory_qa_service
 
 router = APIRouter(prefix="/api/memories", tags=["memories"])
+
+
+class MemoryQuestion(BaseModel):
+    question: str
 
 
 @router.post("/", response_model=Dict[str, Any])
@@ -52,3 +59,43 @@ def search(query: str = Query(..., min_length=1)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.post("/ask", response_model=Dict[str, Any])
+def ask_memories(request: MemoryQuestion):
+    """Answers a user's natural language question about their stored memories."""
+    question = request.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # 1. First attempt full phrase search
+    matched_memories = search_memories(question)
+
+    # 2. If no direct full-phrase match, extract keywords (words > 2 chars) and query
+    if not matched_memories:
+        words = re.findall(r"\b[A-Za-z0-9_]{3,}\b", question)
+        # Filter common stopwords
+        stopwords = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "did", "does", "have", "the", "and", "for", "with", "about"}
+        keywords = [w for w in words if w.lower() not in stopwords]
+        
+        seen_ids = set()
+        for kw in keywords:
+            for mem in search_memories(kw):
+                if mem["id"] not in seen_ids:
+                    seen_ids.add(mem["id"])
+                    matched_memories.append(mem)
+
+    # 3. If question is broad like "What tasks do I have?", fallback to all memories if count is reasonable
+    if not matched_memories and any(w in question.lower() for w in ["task", "tasks", "everything", "all", "memories", "plans"]):
+        matched_memories = get_all_memories()[:20]
+
+    # 4. Generate answer via LLM
+    qa_service = get_memory_qa_service()
+    answer = qa_service.answer(question, matched_memories)
+
+    return {
+        "success": True,
+        "question": question,
+        "answer": answer,
+        "memories_used": matched_memories,
+    }
