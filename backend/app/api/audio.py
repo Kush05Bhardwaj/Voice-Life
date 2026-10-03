@@ -52,7 +52,20 @@ async def upload_audio(file: UploadFile = File(...)):
             "size_bytes": file_size,
             "transcript": "",
             "transcription_error": f"Transcription error: {str(e)}",
+            "understanding": None,
         }
+
+    # Perform AI understanding (Phase 3)
+    transcript_text = transcription_result.get("text", "")
+    understanding_result = None
+    if transcript_text:
+        try:
+            from app.services.understanding import get_understanding_service
+            understanding_service = get_understanding_service()
+            understanding_result = understanding_service.understand(transcript_text)
+        except Exception as e:
+            logger.error(f"Understanding extraction failed: {e}", exc_info=True)
+            understanding_result = {"summary": "Understanding failed", "items": [], "error": str(e)}
 
     return {
         "success": True,
@@ -60,9 +73,10 @@ async def upload_audio(file: UploadFile = File(...)):
         "original_name": file.filename,
         "content_type": file.content_type,
         "size_bytes": file_size,
-        "transcript": transcription_result["text"],
-        "language": transcription_result["language"],
-        "language_probability": transcription_result["language_probability"],
-        "duration": transcription_result["duration"],
+        "transcript": transcript_text,
+        "language": transcription_result.get("language"),
+        "language_probability": transcription_result.get("language_probability"),
+        "duration": transcription_result.get("duration"),
+        "understanding": understanding_result,
     }
 
