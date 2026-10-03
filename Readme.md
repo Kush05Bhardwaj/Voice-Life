@@ -206,7 +206,7 @@ The user remains in control of what becomes a permanent memory.
 - [x] Voice input
 - [x] Speech-to-text
 - [x] AI understanding
-- [ ] Memory extraction
+- [x] Memory extraction
 - [ ] Memory storage
 - [ ] Timeline
 - [ ] Search
