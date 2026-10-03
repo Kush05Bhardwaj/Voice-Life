@@ -203,38 +203,47 @@ The user remains in control of what becomes a permanent memory.
 ## 🗺️ Roadmap
 
 - [x] Project definition
-- [x] Voice input
-- [x] Speech-to-text
-- [x] AI understanding
-- [x] Memory extraction
-- [x] Memory storage
-- [x] Timeline
-- [x] Search
-- [x] Ask Your Memories
-- [ ] Multilingual / Hinglish
-- [ ] WhatsApp integration
-- [ ] Notifications
-- [ ] Privacy improvements
-- [ ] Production-ready release
+- [x] Voice input *(Phase 1)*
+- [x] Speech-to-text *(Phase 2)*
+- [x] AI understanding *(Phase 3)*
+- [x] Memory extraction *(Phase 4)*
+- [x] Memory storage *(Phase 5)*
+- [x] Timeline *(Phase 6)*
+- [x] Search *(Phase 7)*
+- [x] Ask Your Memories *(Phase 8 - **MVP COMPLETE**)*
+- [ ] Multilingual / Hinglish *(Phase 9)*
+- [ ] WhatsApp integration *(Phase 10)*
+- [ ] Notifications *(Phase 11)*
+- [ ] Privacy improvements *(Phase 12)*
+- [ ] Production-ready release *(Phase 13)*
+
+---
+
+## 📚 Documentation
+
+Detailed guides and references for developers and contributors:
+
+- [🚀 Quick Start Guide](docs/quickstart.md) — How to start both frontend and backend locally in under 5 minutes.
+- [📖 Beginner & Developer Guide](docs/begin.md) — Codebase architecture map, request lifecycles, and testing instructions.
+- [🏗️ System Architecture](docs/architecture.md) — End-to-end architecture diagrams, service boundaries, and data flow.
 
 ---
 
 ## 🤝 Open Source
 
-Voice → Life is being built as an open-source project.
-
-Contributions, ideas, improvements, and experiments are welcome.
+Voice → Life is an open-source project. Contributions, feature ideas, improvements, and experiments are welcome.
 
 ---
 
 ## 📌 Project Status
 
-🚧 **Early Development**
+🟢 **MVP Complete (Phases 1–8)**
 
-The project is currently being developed from the ground up, starting with the core voice → memory pipeline.
+The core voice-to-memory pipeline is fully working: Voice Capture → Faster-Whisper → Ollama AI Extraction → Human Confirmation → SQLite Persistence → Interactive Timeline → Search → Grounded Memory Q&A.
 
 ---
 
 ## 📄 License
 
-License will be added as the project reaches its initial release.
+This project is licensed under the **[MIT License](LICENSE)** — see the [LICENSE](LICENSE) file for details.
+
