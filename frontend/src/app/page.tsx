@@ -4,6 +4,17 @@ import { useState, useRef, useEffect } from "react";
 
 const BACKEND_URL = "http://127.0.0.1:8000";
 
+interface ExtractedItem {
+  type: string;
+  text: string;
+}
+
+interface UnderstandingResult {
+  summary: string;
+  items: ExtractedItem[];
+  error?: string;
+}
+
 interface UploadResponse {
   success: boolean;
   filename: string;
@@ -15,6 +26,7 @@ interface UploadResponse {
   language_probability?: number;
   duration?: number;
   transcription_error?: string;
+  understanding?: UnderstandingResult;
 }
 
 export default function Home() {
@@ -282,6 +294,63 @@ export default function Home() {
               <p className="text-base text-zinc-100 font-sans leading-relaxed bg-zinc-900/80 p-4 rounded-lg border border-zinc-800/80">
                 "{uploadResult.transcript}"
               </p>
+            </div>
+          )}
+
+          {/* AI Understanding Display (Phase 3 core) */}
+          {uploadResult?.understanding && (
+            <div className="p-5 bg-zinc-950 rounded-xl border border-violet-500/40 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-violet-400 flex items-center gap-1.5">
+                  🧠 AI Understanding
+                </span>
+                <span className="text-[11px] font-mono bg-violet-950/60 text-violet-300 border border-violet-800/50 px-2 py-0.5 rounded">
+                  Ollama / Qwen
+                </span>
+              </div>
+
+              {/* Summary */}
+              {uploadResult.understanding.summary && (
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-400">Summary</span>
+                  <p className="text-sm text-zinc-200 bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/80">
+                    {uploadResult.understanding.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Extracted Items */}
+              {uploadResult.understanding.items && uploadResult.understanding.items.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-zinc-400">Extracted Information</span>
+                  <div className="grid gap-2">
+                    {uploadResult.understanding.items.map((item, index) => {
+                      const badgeColors: Record<string, string> = {
+                        task: "bg-blue-950/80 text-blue-300 border-blue-800/60",
+                        event: "bg-purple-950/80 text-purple-300 border-purple-800/60",
+                        person: "bg-emerald-950/80 text-emerald-300 border-emerald-800/60",
+                        place: "bg-amber-950/80 text-amber-300 border-amber-800/60",
+                        fact: "bg-cyan-950/80 text-cyan-300 border-cyan-800/60",
+                        plan: "bg-indigo-950/80 text-indigo-300 border-indigo-800/60",
+                        reminder: "bg-rose-950/80 text-rose-300 border-rose-800/60",
+                      };
+                      const colorClass = badgeColors[item.type.toLowerCase()] || "bg-zinc-800 text-zinc-300 border-zinc-700";
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between gap-3 p-3 bg-zinc-900/60 rounded-lg border border-zinc-800/70"
+                        >
+                          <span className="text-sm text-zinc-200 font-sans">{item.text}</span>
+                          <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border font-semibold ${colorClass}`}>
+                            {item.type}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
