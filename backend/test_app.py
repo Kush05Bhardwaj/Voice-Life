@@ -14,8 +14,8 @@ def test_root():
     assert response.json() == {"message": "Voice → Life API is running"}
 
 
-def test_audio_upload_and_transcribe():
-    # Use existing synthetic wav audio file
+def test_audio_upload_and_pipeline():
+    # Use synthetic test audio file
     synth_path = UPLOAD_DIR / "test_synth.wav"
     assert synth_path.exists()
     
@@ -32,9 +32,10 @@ def test_audio_upload_and_transcribe():
     assert "transcript" in data
     assert "language" in data
     assert data["duration"] > 0
+    # understanding key should be present in response (even if empty or None for non-speech)
+    assert "understanding" in data
 
     # Clean up uploaded copy
     uploaded_copy = UPLOAD_DIR / data["filename"]
     if uploaded_copy.exists():
         uploaded_copy.unlink()
-
