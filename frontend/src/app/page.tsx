@@ -68,10 +68,49 @@ export default function Home() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [isLoadingMemories, setIsLoadingMemories] = useState<boolean>(false);
 
+  // Search state (Phase 7)
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<Memory[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setHasSearched(true);
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/api/memories/search?query=${encodeURIComponent(searchQuery.trim())}`
+      );
+      const data = await res.json();
+      if (data.success && Array.isArray(data.memories)) {
+        setSearchResults(data.memories);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (err) {
+      console.error("Search failed:", err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setHasSearched(false);
+  };
 
   const fetchMemories = async () => {
     setIsLoadingMemories(true);
@@ -452,6 +491,106 @@ export default function Home() {
                   );
                 })}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Phase 7: Search Section */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 shadow-xl space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+              🔎 Search Your Memories
+            </h2>
+            <p className="text-xs text-zinc-400">
+              Keyword search across memory text, people, places, dates, and types.
+            </p>
+          </div>
+
+          {/* Search Input Bar */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search by person, keyword, place, or date (e.g. 'Rahul', 'interview')..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
+                className="w-full px-4 py-2.5 bg-zinc-950/70 border border-zinc-800 rounded-xl text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500/80 transition"
+              />
+              {searchQuery && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-300 transition"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-xl text-sm font-semibold transition cursor-pointer shadow-md shadow-blue-950/30 flex items-center gap-2"
+            >
+              {isSearching ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                "Search"
+              )}
+            </button>
+          </div>
+
+          {/* Search Results Display */}
+          {hasSearched && (
+            <div className="space-y-3 pt-2 border-t border-zinc-800/80">
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span>
+                  Results for &ldquo;<span className="text-zinc-200 font-medium">{searchQuery}</span>&rdquo;
+                </span>
+                <span className="font-mono bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 border border-zinc-700/50">
+                  {searchResults.length} match{searchResults.length !== 1 ? "es" : ""} found
+                </span>
+              </div>
+
+              {searchResults.length === 0 ? (
+                <div className="p-6 text-center bg-zinc-950/40 rounded-xl border border-zinc-800/60 text-sm text-zinc-400">
+                  No memories found matching &ldquo;{searchQuery}&rdquo;.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {searchResults.map((mem) => {
+                    const typeKey = mem.type.toLowerCase().split("|")[0].trim();
+                    const badgeColor = badgeColors[typeKey] || "bg-zinc-800 text-zinc-300 border-zinc-700";
+
+                    return (
+                      <div
+                        key={mem.id}
+                        className="p-4 bg-zinc-950/80 border border-zinc-800 hover:border-zinc-700 rounded-xl space-y-2 transition shadow-sm"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border font-semibold shrink-0 mt-0.5 ${badgeColor}`}>
+                            {typeKey}
+                          </span>
+                          <h3 className="text-sm font-medium text-zinc-100 leading-snug">
+                            {mem.text}
+                          </h3>
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-400 font-mono pt-1">
+                          {mem.person && <span>👤 {mem.person}</span>}
+                          {mem.place && <span>📍 {mem.place}</span>}
+                          {mem.date && <span>📅 {mem.date}</span>}
+                          {mem.time && <span>🕐 {mem.time}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
