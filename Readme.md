@@ -210,7 +210,7 @@ The user remains in control of what becomes a permanent memory.
 - [x] Memory storage
 - [x] Timeline
 - [x] Search
-- [ ] Ask Your Memories
+- [x] Ask Your Memories
 - [ ] Multilingual / Hinglish
 - [ ] WhatsApp integration
 - [ ] Notifications
