@@ -53,6 +53,7 @@ USER QUESTION:
                         "content": prompt,
                     }
                 ],
+                options={"num_predict": 512},
             )
             return response["message"]["content"].strip()
         except Exception as e:
