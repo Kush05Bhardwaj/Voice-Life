@@ -203,7 +203,7 @@ The user remains in control of what becomes a permanent memory.
 ## 🗺️ Roadmap
 
 - [x] Project definition
-- [ ] Voice input
+- [x] Voice input
 - [ ] Speech-to-text
 - [ ] AI understanding
 - [ ] Memory extraction
