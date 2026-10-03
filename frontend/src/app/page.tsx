@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -5,6 +6,8 @@ import { useState, useRef, useEffect } from "react";
 const BACKEND_URL = "http://127.0.0.1:8000";
 
 interface ExtractedItem {
+
+  
   type: string;
   text: string;
 }
