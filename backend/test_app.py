@@ -66,3 +66,22 @@ def test_memories_crud():
     assert get_data["success"] is True
     assert get_data["count"] >= 1
     assert any(m["text"] == "Send internship documents to Rahul" for m in get_data["memories"])
+
+
+def test_memories_search():
+    # Search for matching term
+    res_match = client.get("/api/memories/search?query=Rahul")
+    assert res_match.status_code == 200
+    data_match = res_match.json()
+    assert data_match["success"] is True
+    assert data_match["count"] >= 1
+    assert any(m["person"] == "Rahul" or "Rahul" in m["text"] for m in data_match["memories"])
+
+    # Search for nonexistent term
+    res_empty = client.get("/api/memories/search?query=NonExistentTermXYZ123")
+    assert res_empty.status_code == 200
+    data_empty = res_empty.json()
+    assert data_empty["success"] is True
+    assert data_empty["count"] == 0
+    assert len(data_empty["memories"]) == 0
+
