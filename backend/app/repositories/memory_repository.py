@@ -61,3 +61,33 @@ def get_memory_by_id(memory_id: int) -> Optional[Dict[str, Any]]:
     connection.close()
     return dict(row) if row else None
 
+
+def search_memories(query: str) -> List[Dict[str, Any]]:
+    connection = get_connection()
+    search_pattern = f"%{query}%"
+    rows = connection.execute(
+        """
+        SELECT *
+        FROM memories
+        WHERE
+            text LIKE ?
+            OR type LIKE ?
+            OR person LIKE ?
+            OR place LIKE ?
+            OR date LIKE ?
+            OR time LIKE ?
+        ORDER BY created_at DESC
+        """,
+        (
+            search_pattern,
+            search_pattern,
+            search_pattern,
+            search_pattern,
+            search_pattern,
+            search_pattern,
+        ),
+    ).fetchall()
+    connection.close()
+    return [dict(row) for row in rows]
+
+
