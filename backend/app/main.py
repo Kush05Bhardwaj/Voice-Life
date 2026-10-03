@@ -2,11 +2,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.audio import router as audio_router
+from app.api.memories import router as memories_router
 from app.services.transcription import get_transcription_service
+from app.services.database import init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize SQLite database schema
+    init_db()
     # Pre-warm transcription service on server startup
     get_transcription_service()
     yield
@@ -14,7 +18,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Voice → Life API",
-    version="0.2.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -28,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(audio_router)
+app.include_router(memories_router)
 
 
 @app.get("/")
@@ -35,4 +40,3 @@ def root():
     return {
         "message": "Voice → Life API is running"
     }
-
