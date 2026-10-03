@@ -1,7 +1,12 @@
 from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from app.models.memory import Memory
-from app.repositories.memory_repository import save_memory, get_all_memories, get_memory_by_id
+from app.repositories.memory_repository import (
+    save_memory,
+    get_all_memories,
+    get_memory_by_id,
+    search_memories,
+)
 
 router = APIRouter(prefix="/api/memories", tags=["memories"])
 
@@ -32,3 +37,18 @@ def get_memories():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch memories: {str(e)}")
+
+
+@router.get("/search", response_model=Dict[str, Any])
+def search(query: str = Query(..., min_length=1)):
+    """Search stored memories using keyword search across all fields."""
+    try:
+        memories = search_memories(query)
+        return {
+            "success": True,
+            "query": query,
+            "count": len(memories),
+            "memories": memories,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")

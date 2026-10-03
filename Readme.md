@@ -209,7 +209,7 @@ The user remains in control of what becomes a permanent memory.
 - [x] Memory extraction
 - [x] Memory storage
 - [x] Timeline
-- [ ] Search
+- [x] Search
 - [ ] Ask Your Memories
 - [ ] Multilingual / Hinglish
 - [ ] WhatsApp integration
