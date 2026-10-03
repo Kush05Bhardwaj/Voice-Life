@@ -10,6 +10,11 @@ interface UploadResponse {
   original_name: string;
   content_type: string;
   size_bytes: number;
+  transcript?: string;
+  language?: string;
+  language_probability?: number;
+  duration?: number;
+  transcription_error?: string;
 }
 
 export default function Home() {
@@ -19,7 +24,7 @@ export default function Home() {
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -108,15 +113,15 @@ export default function Home() {
     }
   };
 
-  // Upload either recorded blob or picked file to FastAPI
-  const handleUpload = async () => {
+  // Upload and Transcribe audio
+  const handleProcessVoice = async () => {
     const audioToSend = selectedFile || recordedBlob;
     if (!audioToSend) {
       setErrorMsg("Please record audio or select a file first.");
       return;
     }
 
-    setIsUploading(true);
+    setIsProcessing(true);
     setErrorMsg(null);
     setUploadResult(null);
 
@@ -141,10 +146,10 @@ export default function Home() {
       const data: UploadResponse = await res.json();
       setUploadResult(data);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Upload error";
+      const message = err instanceof Error ? err.message : "Processing error";
       setErrorMsg(message);
     } finally {
-      setIsUploading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -162,7 +167,7 @@ export default function Home() {
             🎙️ Voice → Life
           </h1>
           <p className="text-sm text-zinc-400">
-            Phase 1: Audio Input &amp; Storage
+            Phase 2: Speech → Text (Faster-Whisper)
           </p>
         </div>
 
@@ -230,26 +235,26 @@ export default function Home() {
           {audioUrl && (
             <div className="p-4 bg-zinc-800/40 rounded-xl border border-zinc-700/60 space-y-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                Preview Audio
+                Audio Preview
               </span>
               <audio controls src={audioUrl} className="w-full h-10" />
             </div>
           )}
 
-          {/* Process / Upload Button */}
+          {/* Process / Transcribe Button */}
           {(recordedBlob || selectedFile) && (
             <button
-              onClick={handleUpload}
-              disabled={isUploading}
+              onClick={handleProcessVoice}
+              disabled={isProcessing}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white rounded-xl font-semibold transition cursor-pointer shadow-lg shadow-blue-950/50 flex items-center justify-center gap-2"
             >
-              {isUploading ? (
+              {isProcessing ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  Uploading to Backend...
+                  Transcribing Voice (Whisper)...
                 </>
               ) : (
-                "Process Voice (Send to Backend)"
+                "Process Voice (Transcribe)"
               )}
             </button>
           )}
@@ -261,18 +266,39 @@ export default function Home() {
             </div>
           )}
 
-          {/* Upload Success Output */}
+          {/* Transcript Display (Phase 2 core) */}
+          {uploadResult?.transcript && (
+            <div className="p-5 bg-zinc-950 rounded-xl border border-blue-500/40 shadow-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                  📝 Transcript
+                </span>
+                {uploadResult.language && (
+                  <span className="text-[11px] font-mono bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-400 border border-zinc-700/50">
+                    Language: {uploadResult.language} ({((uploadResult.language_probability ?? 0) * 100).toFixed(0)}%)
+                  </span>
+                )}
+              </div>
+              <p className="text-base text-zinc-100 font-sans leading-relaxed bg-zinc-900/80 p-4 rounded-lg border border-zinc-800/80">
+                "{uploadResult.transcript}"
+              </p>
+            </div>
+          )}
+
+          {uploadResult?.transcription_error && (
+            <div className="p-4 bg-amber-950/40 border border-amber-800/80 rounded-xl text-amber-300 text-xs font-mono">
+              ⚠️ {uploadResult.transcription_error}
+            </div>
+          )}
+
+          {/* Metadata Card */}
           {uploadResult && (
-            <div className="p-5 bg-emerald-950/40 border border-emerald-800/80 rounded-xl text-emerald-200 text-sm space-y-2">
-              <div className="flex items-center gap-2 font-semibold text-emerald-400">
-                <span>✓ Audio received &amp; stored</span>
-              </div>
-              <div className="font-mono text-xs space-y-1 text-zinc-300 bg-zinc-950/70 p-3 rounded-lg border border-zinc-800">
-                <div><span className="text-zinc-500">File ID:</span> {uploadResult.filename}</div>
-                <div><span className="text-zinc-500">Source:</span> {uploadResult.original_name}</div>
-                <div><span className="text-zinc-500">Size:</span> {(uploadResult.size_bytes / 1024).toFixed(1)} KB</div>
-                <div><span className="text-zinc-500">Path:</span> backend/uploads/{uploadResult.filename}</div>
-              </div>
+            <div className="p-4 bg-zinc-950/60 border border-zinc-800/80 rounded-xl text-xs font-mono text-zinc-400 space-y-1">
+              <div><span className="text-zinc-500">File ID:</span> {uploadResult.filename}</div>
+              <div><span className="text-zinc-500">Size:</span> {(uploadResult.size_bytes / 1024).toFixed(1)} KB</div>
+              {uploadResult.duration !== undefined && (
+                <div><span className="text-zinc-500">Audio Duration:</span> {uploadResult.duration}s</div>
+              )}
             </div>
           )}
 
