@@ -51,6 +51,8 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [savedMemoryIndices, setSavedMemoryIndices] = useState<Set<number>>(new Set());
+  const [savingIndex, setSavingIndex] = useState<number | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -169,11 +171,32 @@ export default function Home() {
 
       const data: UploadResponse = await res.json();
       setUploadResult(data);
+      setSavedMemoryIndices(new Set());
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Processing error";
       setErrorMsg(message);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleSaveMemory = async (memory: MemoryCandidate, index: number) => {
+    setSavingIndex(index);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/memories/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(memory),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to save memory to database");
+      }
+      setSavedMemoryIndices((prev) => new Set(prev).add(index));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save memory";
+      setErrorMsg(message);
+    } finally {
+      setSavingIndex(null);
     }
   };
 
@@ -191,7 +214,7 @@ export default function Home() {
             🎙️ Voice → Life
           </h1>
           <p className="text-sm text-zinc-400">
-            Phase 2: Speech → Text (Faster-Whisper)
+            Phase 5: Audio → Whisper → AI → Memory Storage (SQLite)
           </p>
         </div>
 
@@ -409,16 +432,32 @@ export default function Home() {
                   const typeKey = mem.type.toLowerCase().split("|")[0].trim();
                   const cardColor = typeColors[typeKey] || "border-zinc-700/60 bg-zinc-900/40";
                   const badgeColor = typeBadge[typeKey] || "bg-zinc-800 text-zinc-300 border-zinc-700";
+                  const isSaved = savedMemoryIndices.has(index);
+                  const isSavingThis = savingIndex === index;
 
                   return (
-                    <div key={index} className={`p-4 rounded-xl border space-y-2 ${cardColor}`}>
+                    <div key={index} className={`p-4 rounded-xl border space-y-3 ${cardColor}`}>
                       {/* Type badge + text */}
-                      <div className="flex items-start gap-3">
-                        <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border font-semibold shrink-0 mt-0.5 ${badgeColor}`}>
-                          {typeKey}
-                        </span>
-                        <span className="text-sm text-zinc-100 leading-relaxed">{mem.text}</span>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border font-semibold shrink-0 mt-0.5 ${badgeColor}`}>
+                            {typeKey}
+                          </span>
+                          <span className="text-sm text-zinc-100 leading-relaxed">{mem.text}</span>
+                        </div>
+                        <button
+                          onClick={() => handleSaveMemory(mem, index)}
+                          disabled={isSaved || isSavingThis}
+                          className={`text-xs px-3 py-1 rounded-lg font-medium transition shrink-0 cursor-pointer ${
+                            isSaved
+                              ? "bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 cursor-default"
+                              : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
+                          }`}
+                        >
+                          {isSaved ? "✓ Saved" : isSavingThis ? "Saving..." : "Confirm & Save"}
+                        </button>
                       </div>
+
                       {/* Metadata row */}
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400 font-mono pl-1">
                         {mem.person && <span>👤 {mem.person}</span>}
@@ -435,9 +474,6 @@ export default function Home() {
                   );
                 })}
               </div>
-              <p className="text-xs text-zinc-600 text-center">
-                Memory saving (Phase 5) coming next →
-              </p>
             </div>
           )}
 
