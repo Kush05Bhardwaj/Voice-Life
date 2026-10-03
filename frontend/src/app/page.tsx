@@ -1,0 +1,283 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+
+const BACKEND_URL = "http://127.0.0.1:8000";
+
+interface UploadResponse {
+  success: boolean;
+  filename: string;
+  original_name: string;
+  content_type: string;
+  size_bytes: number;
+}
+
+export default function Home() {
+  const [backendStatus, setBackendStatus] = useState<string>("Checking connection...");
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingDuration, setRecordingDuration] = useState<number>(0);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Check backend health on mount
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/`)
+      .then((res) => res.json())
+      .then((data) => setBackendStatus(data.message || "Connected"))
+      .catch(() => setBackendStatus("Backend not reachable (run backend on port 8000)"));
+  }, []);
+
+  // Format recording timer
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Start microphone recording
+  const startRecording = async () => {
+    setErrorMsg(null);
+    setUploadResult(null);
+    setSelectedFile(null);
+    setRecordedBlob(null);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setRecordedBlob(audioBlob);
+        setAudioUrl(URL.createObjectURL(audioBlob));
+        // Stop stream tracks
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      timerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Microphone access denied or unavailable";
+      setErrorMsg(`Microphone error: ${message}`);
+    }
+  };
+
+  // Stop recording
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  // Handle local file picker
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMsg(null);
+    setUploadResult(null);
+    setRecordedBlob(null);
+
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      setAudioUrl(URL.createObjectURL(file));
+    }
+  };
+
+  // Upload either recorded blob or picked file to FastAPI
+  const handleUpload = async () => {
+    const audioToSend = selectedFile || recordedBlob;
+    if (!audioToSend) {
+      setErrorMsg("Please record audio or select a file first.");
+      return;
+    }
+
+    setIsUploading(true);
+    setErrorMsg(null);
+    setUploadResult(null);
+
+    try {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append("file", selectedFile, selectedFile.name);
+      } else if (recordedBlob) {
+        formData.append("file", recordedBlob, `recording_${Date.now()}.webm`);
+      }
+
+      const res = await fetch(`${BACKEND_URL}/api/audio/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errDetail = await res.json().catch(() => ({ detail: "Upload failed" }));
+        throw new Error(errDetail.detail || "Upload request failed");
+      }
+
+      const data: UploadResponse = await res.json();
+      setUploadResult(data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload error";
+      setErrorMsg(message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-6 antialiased">
+      <div className="w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl space-y-8">
+        
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/80 border border-zinc-700/50 text-xs text-zinc-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            {backendStatus}
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent">
+            🎙️ Voice → Life
+          </h1>
+          <p className="text-sm text-zinc-400">
+            Phase 1: Audio Input &amp; Storage
+          </p>
+        </div>
+
+        {/* Action Panel */}
+        <div className="space-y-6">
+          
+          {/* Record Section */}
+          <div className="p-6 bg-zinc-950/60 rounded-xl border border-zinc-800/80 flex flex-col items-center gap-4">
+            <span className="text-sm font-medium text-zinc-300">Option 1: Microphone</span>
+            
+            {isRecording ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-2 text-rose-500 font-mono text-lg font-bold animate-pulse">
+                  <span className="w-3 h-3 rounded-full bg-rose-500" />
+                  Recording: {formatTime(recordingDuration)}
+                </div>
+                <button
+                  onClick={stopRecording}
+                  className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-medium transition cursor-pointer shadow-lg shadow-rose-950/50"
+                >
+                  ⏹ Stop Recording
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={startRecording}
+                className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-xl font-medium transition cursor-pointer flex items-center gap-2"
+              >
+                🎙️ Start Recording
+              </button>
+            )}
+          </div>
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-zinc-800 w-full" />
+            <span className="bg-zinc-900 px-3 text-xs uppercase tracking-wider text-zinc-500 font-semibold absolute">
+              or
+            </span>
+          </div>
+
+          {/* Upload Section */}
+          <div className="p-6 bg-zinc-950/60 rounded-xl border border-zinc-800/80 flex flex-col items-center gap-4">
+            <span className="text-sm font-medium text-zinc-300">Option 2: Upload File</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,.webm,.wav,.mp3,.m4a,.ogg"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-xl font-medium transition cursor-pointer flex items-center gap-2"
+            >
+              📁 Choose Audio File
+            </button>
+            {selectedFile && (
+              <p className="text-xs text-zinc-400 font-mono">
+                Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+              </p>
+            )}
+          </div>
+
+          {/* Audio Preview */}
+          {audioUrl && (
+            <div className="p-4 bg-zinc-800/40 rounded-xl border border-zinc-700/60 space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                Preview Audio
+              </span>
+              <audio controls src={audioUrl} className="w-full h-10" />
+            </div>
+          )}
+
+          {/* Process / Upload Button */}
+          {(recordedBlob || selectedFile) && (
+            <button
+              onClick={handleUpload}
+              disabled={isUploading}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white rounded-xl font-semibold transition cursor-pointer shadow-lg shadow-blue-950/50 flex items-center justify-center gap-2"
+            >
+              {isUploading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Uploading to Backend...
+                </>
+              ) : (
+                "Process Voice (Send to Backend)"
+              )}
+            </button>
+          )}
+
+          {/* Error Message */}
+          {errorMsg && (
+            <div className="p-4 bg-rose-950/40 border border-rose-800/80 rounded-xl text-rose-300 text-sm">
+              ⚠️ {errorMsg}
+            </div>
+          )}
+
+          {/* Upload Success Output */}
+          {uploadResult && (
+            <div className="p-5 bg-emerald-950/40 border border-emerald-800/80 rounded-xl text-emerald-200 text-sm space-y-2">
+              <div className="flex items-center gap-2 font-semibold text-emerald-400">
+                <span>✓ Audio received &amp; stored</span>
+              </div>
+              <div className="font-mono text-xs space-y-1 text-zinc-300 bg-zinc-950/70 p-3 rounded-lg border border-zinc-800">
+                <div><span className="text-zinc-500">File ID:</span> {uploadResult.filename}</div>
+                <div><span className="text-zinc-500">Source:</span> {uploadResult.original_name}</div>
+                <div><span className="text-zinc-500">Size:</span> {(uploadResult.size_bytes / 1024).toFixed(1)} KB</div>
+                <div><span className="text-zinc-500">Path:</span> backend/uploads/{uploadResult.filename}</div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
