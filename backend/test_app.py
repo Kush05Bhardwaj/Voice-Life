@@ -85,3 +85,15 @@ def test_memories_search():
     assert data_empty["count"] == 0
     assert len(data_empty["memories"]) == 0
 
+
+def test_memories_ask():
+    # Ask question that should match stored memory
+    res = client.post("/api/memories/ask", json={"question": "What did I need to send Rahul?"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert data["question"] == "What did I need to send Rahul?"
+    assert len(data["answer"]) > 0
+    assert len(data["memories_used"]) >= 1
+
+
