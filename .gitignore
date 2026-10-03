@@ -1,6 +1,5 @@
 backend/uploads/
 backend/.venv/
-backend/voice_life.db
 frontend/node_modules/
 frontend/.next/
 .env
@@ -8,4 +7,3 @@ frontend/.next/
 !.env.example
 __pycache__/
 *.pyc
-*.db
