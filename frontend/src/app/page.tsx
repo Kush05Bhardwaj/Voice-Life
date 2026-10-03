@@ -15,6 +15,16 @@ interface UnderstandingResult {
   error?: string;
 }
 
+interface MemoryCandidate {
+  type: string;
+  text: string;
+  person: string | null;
+  place: string | null;
+  date: string | null;
+  time: string | null;
+  confidence: number | null;
+}
+
 interface UploadResponse {
   success: boolean;
   filename: string;
@@ -27,7 +37,9 @@ interface UploadResponse {
   duration?: number;
   transcription_error?: string;
   understanding?: UnderstandingResult;
+  memory_candidates?: MemoryCandidate[];
 }
+
 
 export default function Home() {
   const [backendStatus, setBackendStatus] = useState<string>("Checking connection...");
@@ -357,6 +369,75 @@ export default function Home() {
           {uploadResult?.transcription_error && (
             <div className="p-4 bg-amber-950/40 border border-amber-800/80 rounded-xl text-amber-300 text-xs font-mono">
               ⚠️ {uploadResult.transcription_error}
+            </div>
+          )}
+
+          {/* Phase 4: Memory Candidates (awaiting confirmation) */}
+          {uploadResult?.memory_candidates && uploadResult.memory_candidates.length > 0 && (
+            <div className="p-5 bg-zinc-950 rounded-xl border border-emerald-500/40 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  📦 Memory Candidates
+                </span>
+                <span className="text-[11px] font-mono bg-emerald-950/60 text-emerald-300 border border-emerald-800/50 px-2 py-0.5 rounded">
+                  {uploadResult.memory_candidates.length} candidate{uploadResult.memory_candidates.length !== 1 ? "s" : ""} · awaiting confirmation
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Review these memory candidates. Saving will be available in Phase 5.
+              </p>
+              <div className="space-y-3">
+                {uploadResult.memory_candidates.map((mem, index) => {
+                  const typeColors: Record<string, string> = {
+                    task: "border-blue-700/60 bg-blue-950/30",
+                    event: "border-purple-700/60 bg-purple-950/30",
+                    person: "border-emerald-700/60 bg-emerald-950/30",
+                    place: "border-amber-700/60 bg-amber-950/30",
+                    fact: "border-cyan-700/60 bg-cyan-950/30",
+                    plan: "border-indigo-700/60 bg-indigo-950/30",
+                    reminder: "border-rose-700/60 bg-rose-950/30",
+                  };
+                  const typeBadge: Record<string, string> = {
+                    task: "bg-blue-950 text-blue-300 border-blue-800",
+                    event: "bg-purple-950 text-purple-300 border-purple-800",
+                    person: "bg-emerald-950 text-emerald-300 border-emerald-800",
+                    place: "bg-amber-950 text-amber-300 border-amber-800",
+                    fact: "bg-cyan-950 text-cyan-300 border-cyan-800",
+                    plan: "bg-indigo-950 text-indigo-300 border-indigo-800",
+                    reminder: "bg-rose-950 text-rose-300 border-rose-800",
+                  };
+                  const typeKey = mem.type.toLowerCase().split("|")[0].trim();
+                  const cardColor = typeColors[typeKey] || "border-zinc-700/60 bg-zinc-900/40";
+                  const badgeColor = typeBadge[typeKey] || "bg-zinc-800 text-zinc-300 border-zinc-700";
+
+                  return (
+                    <div key={index} className={`p-4 rounded-xl border space-y-2 ${cardColor}`}>
+                      {/* Type badge + text */}
+                      <div className="flex items-start gap-3">
+                        <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border font-semibold shrink-0 mt-0.5 ${badgeColor}`}>
+                          {typeKey}
+                        </span>
+                        <span className="text-sm text-zinc-100 leading-relaxed">{mem.text}</span>
+                      </div>
+                      {/* Metadata row */}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400 font-mono pl-1">
+                        {mem.person && <span>👤 {mem.person}</span>}
+                        {mem.place && <span>📍 {mem.place}</span>}
+                        {mem.date && <span>📅 {mem.date}</span>}
+                        {mem.time && <span>🕐 {mem.time}</span>}
+                        {mem.confidence !== null && (
+                          <span className="ml-auto text-zinc-600">
+                            {Math.round((mem.confidence ?? 0) * 100)}% confidence
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-zinc-600 text-center">
+                Memory saving (Phase 5) coming next →
+              </p>
             </div>
           )}
 
