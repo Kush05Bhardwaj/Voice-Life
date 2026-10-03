@@ -208,7 +208,7 @@ The user remains in control of what becomes a permanent memory.
 - [x] AI understanding
 - [x] Memory extraction
 - [x] Memory storage
-- [ ] Timeline
+- [x] Timeline
 - [ ] Search
 - [ ] Ask Your Memories
 - [ ] Multilingual / Hinglish
